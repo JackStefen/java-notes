@@ -1,5 +1,5 @@
 # 1.c3p0简介
-c3p0被设计成易于使用。只需要在项目中导入相关jar包即可
+c3p0被设计成易于使用。只需要在项目中导入相关jar包即可,导入相关包时，需要注意，包的版本的及依赖包的版本
 ```
 <dependencies>
   <!-- https://mvnrepository.com/artifact/com.mchange/c3p0 -->
@@ -30,9 +30,10 @@ cpds.setPassword("dbpassword");
 `cpds.close();`就是这样，剩下的就是细节了。
 # 2.c3p0使用
 获取c3p0池支持的DataSource有三种方法：
-- 直接实例化和配置一个ComboPooledDataSource实例。
+- 直接实例化和配置一个ComboPooledDataSource实例。(推荐使用此方法)
 - 使用DataSources工厂类
 - 通过直接实例化PoolBackedDataSource并设置其ConectionPoolDataSource来“构建您自己的”池支持的DataSource
+
 大多数用户可能会发现实例化ComboPooledDataSource是最方便的方法。 实例化后，c3p0 DataSources几乎可以绑定到任何符合JNDI的名称服务。
 
 实例化和配置一个ComboPooledDataSource
@@ -46,18 +47,6 @@ ds = new ComboPooledDataSource();
 //			ds.setMinPoolSize(10);
 //			ds.setInitialPoolSize(50);
 //			ds.setMaxStatements(180);
-```
-使用DataSources工厂类
-```
-	DataSource ds_unpooled = DataSources.unpooledDataSource(url, 
-					username, 
-					password);
-			Map overrides = new HashMap();
-			overrides.put("maxStatements", "200");         //Stringified property values work
-			overrides.put("maxPoolSize", new Integer(50)); //"boxed primitives" also work
-
-			// create the PooledDataSource using the default configuration and our overrides
-			ds_pooled = DataSources.pooledDataSource( ds_unpooled, overrides ); 
 ```
 
 # 3. c3p0 PooledDataSources的清理工作
@@ -83,3 +72,57 @@ nitialPoolSize，minPoolSize，maxPoolSize定义将池的Connections数。 请�
 - maxIdleTime 
 - maxIdleTimeExcessConnections 
 默认情况下，池永远不会到期连接。 如果您希望Connections随着时间的推移而过期，以保持“新鲜度”，设置maxIdleTime and/or maxConnectionAge. maxIdleTime定义在从池中删除连接之前，应该允许连接闲置多长时间。maxConnectionAge 强制池剔除过去从数据库中获取的超过设置秒数的任何连接。maxIdleTimeExcessConnections 是关于在池未加载时最小化c3p0池所持有的连接数。默认情况下，c3p0池在负载下会增长，但只有在连接未通过连接测试或通过上述参数过期时才会收缩。一些用户希望他们的池在使用高峰后快速释放不必要的连接。关于所有这些超时参数的一些一般建议：慢下来！ 连接池的要点是承担仅获取一次Connection的成本，然后多次重复使用Connection。 大多数数据库支持一次保持打开数小时的连接。 每隔几秒钟或几分钟就无需流失所有连接。 将maxConnectionAge或maxIdleTime设置为1800（30分钟）非常激进。 对于大多数数据库，几个小时可能更合适。 您可以通过测试来确保Connections的可靠性，而不是通过抛弃它们来确保它们的可靠性。 （请参阅配置连接测试。）通常应设置为几分钟或更短时间的这些参数中唯一一个是maxIdleTimeExcessConnections。
+# 7.hibernate c3p0
+导入相关包，注意包的版本问题，否则无法支持相关功能：
+```
+<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-c3p0 -->
+<dependency>
+    <groupId>org.hibernate</groupId>
+    <artifactId>hibernate-c3p0</artifactId>
+    <version>5.3.3.Final</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/com.mchange/c3p0 -->
+<dependency>
+    <groupId>com.mchange</groupId>
+    <artifactId>c3p0</artifactId>
+    <version>0.9.5.2</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-core -->
+<dependency>
+    <groupId>org.hibernate</groupId>
+    <artifactId>hibernate-core</artifactId>
+    <version>5.3.3.Final</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.jboss.logging/jboss-logging -->
+<dependency>
+    <groupId>org.jboss.logging</groupId>
+    <artifactId>jboss-logging</artifactId>
+    <version>3.3.2.Final</version>
+</dependency>
+
+```
+其相关依赖包都要相应导入，导入时需注意包的版本依赖
+![image.png](https://upload-images.jianshu.io/upload_images/3004516-43fadab7a86c3f9e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+相关包导入后，即可在项目中，进行相关配置，来使用数据库连接池的功能了
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+   "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+   "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+	<session-factory>
+		<property name="dialect">org.hibernate.dialect.Oracle9iDialect</property>
+		<property name="connection.driver_class">oracle.jdbc.driver.OracleDriver</property>
+		<property name="connection.url">jdbc:oracle:thin:@127.0.0.1:1521:orcl</property>
+		<property name="connection.username">username</property>
+		<property name="connection.password">password</property>
+		<property name="format_sql">false</property>
+		<property name="show_sql">false</property>
+		<property name="hbm2ddl.auto">update</property>
+		<property name="c3p0.min_size">5</property>
+		<property name="c3p0.max_size">30</property>
+		<property name="c3p0.timeout">120</property>
+		<property name="c3p0.idle_test_period">3000</property>
+	</session-factory>
+</hibernate-configuration>
+```
