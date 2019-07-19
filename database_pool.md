@@ -30,7 +30,7 @@ cpds.setPassword("dbpassword");
 `cpds.close();`就是这样，剩下的就是细节了。
 # 2.c3p0使用
 获取c3p0池支持的DataSource有三种方法：
-- 直接实例化和配置一个ComboPooledDataSource实例。(推荐使用此方法)
+- 直接实例化和配置一个ComboPooledDataSource实例。
 - 使用DataSources工厂类
 - 通过直接实例化PoolBackedDataSource并设置其ConectionPoolDataSource来“构建您自己的”池支持的DataSource
 
@@ -126,3 +126,67 @@ nitialPoolSize，minPoolSize，maxPoolSize定义将池的Connections数。 请�
 	</session-factory>
 </hibernate-configuration>
 ```
+
+## mysql数据库
+hibernate.cfg.xml配置
+
+```
+		<property name="dialect">org.hibernate.dialect.MySQL5InnoDBDialect</property>
+		<property name="connection.driver_class">com.mysql.jdbc.Driver</property>
+		<property name="connection.url">jdbc:mysql://localhost:3306/dbname?useSSL=false</property>
+		<property name="connection.characterEncoding">utf-8 </property>
+		<property name="connection.username">username</property>
+		<property name="connection.password">password</property>
+```
+在dao层进行查询操作时，使用
+`Object result = query.uniqueResult();`要注意，因为该方法在查询为空时，返回的是null,不能进行诸如
+`(Long)null`此类的强制类型转换，所以需要另外处理
+
+## oracle数据库
+hibernate.cfg.xml配置
+
+```
+		<property name="dialect">org.hibernate.dialect.Oracle9iDialect</property>
+		<property name="connection.driver_class">oracle.jdbc.driver.OracleDriver</property>
+		<property name="connection.url">jdbc:oracle:thin:@127.0.0.1:1521:sid</property>
+		<property name="connection.username">username</property>
+		<property name="connection.password">password</property>
+```
+
+## c3p0配置
+使用c3p0数据库连接池配置
+
+```
+		<!--连接池中保留的最小连接数。-->
+		<property name="c3p0.min_size">5</property>
+		<!--连接池中保留的最大连接数。Default: 15 -->
+		<property name="c3p0.max_size">30</property>
+		<!-- 获得连接的超时时间,如果超过这个时间,会抛出异常，单位毫秒 -->
+		<property name="c3p0.timeout">120</property>
+		<!-- 每隔3000秒检查连接池里的空闲连接 ，单位是秒-->
+		<property name="c3p0.idle_test_period">3000</property>
+		<!-- 当连接池里面的连接用完的时候，C3P0一下获取的新的连接数 -->
+		<property name="c3p0.acquire_increment">2</property>
+		<!-- 每次都验证连接是否可用 -->
+		<property name="c3p0.validate">true</property>
+```
+
+c3p0验证是否配置生效的方法：
+- 1.日志会打印出相关,Initializing c3p0 pool... com.mchange.v2.c3p0.PoolBackedDataSource@6f43311e [ connectionPoolDataSource -> com.mchange.v2.c3p0.WrapperConnectionPoolDataSource@8e2adb8b [ acquireIncrement -> 3, acquireRetryAttempts -> 30, acquireRetryDelay -> 1000, autoCommitOnClose -> false, automaticTestTable -> null, breakAfterAcquireFailure -> false, checkoutTimeout -> 0, connectionCustomizerClassName -> null, connectionTesterClassName -> com.mchange.v2.c3p0.impl.DefaultConnectionTester, debugUnreturnedConnectionStackTraces -> false, factoryClassLocation -> null, forceIgnoreUnresolvedTransactions -> false, identityToken -> 1hgeky5a42eya661mluequ|3d1848cc, idleConnectionTestPeriod -> 3000, initialPoolSize -> 5, maxAdministrativeTaskTime -> 0, maxConnectionAge -> 0, maxIdleTime -> 120, maxIdleTimeExcessConnections -> 0, maxPoolSize -> 30, maxStatements -> 0, maxStatementsPerConnection -> 0, minPoolSize -> 5, nestedDataSource -> com.mchange.v2.c3p0.DriverManagerDataSource@a32d3f56 [ description -> null, driverClass -> null, factoryClassLocation -> null, identityToken -> 1hgeky5a42eya661mluequ|336f1079, jdbcUrl -> jdbc:oracle:thin:@127.0.0.1:1521:orcl, properties -> {user=******, password=******} ], preferredTestQuery -> null, propertyCycle -> 0, testConnectionOnCheckin -> false, testConnectionOnCheckout -> false, unreturnedConnectionTimeout -> 0, usesTraditionalReflectiveProxies -> false; userOverrides: {} ], dataSourceName -> null, factoryClassLocation -> null, identityToken -> 1hgeky5a42eya661mluequ|2ea6e30c, numHelperThreads -> 3 ] 
+
+- 2.mysql数据库可以查看`show processlist`;
+```
++-----+------+-----------------+----------------+---------+------+----------+------------------+
+| 413 | root | localhost:60627 | localhost_mayi | Sleep   |   49 |          | NULL             |
+| 414 | root | localhost:60628 | NULL           | Sleep   |   56 |          | NULL             |
+| 457 | root | localhost       | NULL           | Query   |    0 | starting | show processlist |
+| 463 | root | localhost:62823 | localhost_mayi | Sleep   |   12 |          | NULL             |
+| 464 | root | localhost:62822 | localhost_mayi | Sleep   |   12 |          | NULL             |
+| 465 | root | localhost:62824 | localhost_mayi | Sleep   |    1 |          | NULL             |
+| 466 | root | localhost:62825 | localhost_mayi | Sleep   |    0 |          | NULL             |
+| 467 | root | localhost:62826 | localhost_mayi | Sleep   |   12 |          | NULL             |
++-----+------+-----------------+----------------+---------+------+----------+------------------+
+8 rows in set (0.00 sec)
+```
+
+*注 ：无论使用何种数据库存储，都把相关驱动提前加入到pom文件中，后续仅仅调整配置文件即可，无需重新编译*
